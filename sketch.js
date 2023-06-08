@@ -56,7 +56,7 @@ function configure() {
 function setup() {
     createCanvas(WIDTH, HEIGHT, P2D)
 
-    sliderStep = createSlider(1, 10, 1)
+    sliderStep = createSlider(1, 50, 1)
     sliderStep.position(10, 40)
     sliderStep.input(configure)
     sliderLbl = createSpan("")
@@ -68,13 +68,13 @@ function setup() {
     scaleLbl = createSpan("")
     scaleLbl.position(10, 80)
 
-    sliderTransX = createSlider(-WIDTH, WIDTH, -200)
+    sliderTransX = createSlider(-WIDTH, WIDTH, -224)
     sliderTransX.position(10, 160)
     sliderTransX.input(configure)
     transXLbl = createSpan("")
     transXLbl.position(10, 140)
 
-    sliderTransY = createSlider(-HEIGHT, HEIGHT, -150)
+    sliderTransY = createSlider(-HEIGHT, HEIGHT, -224)
     sliderTransY.position(10, 220)
     sliderTransY.input(configure)
     transYLbl = createSpan("")
@@ -84,7 +84,7 @@ function setup() {
 }
 
 function draw() {
-    background(200)
+    background('#F9F9F9')
 
     let x = CENTER.x
     let y = CENTER.y
@@ -98,17 +98,18 @@ function draw() {
     trace.push([x, y])
 
     const traceN = trace.length
-    // beginShape()
-    strokeWeight(3)
+    stroke(120)
+    // strokeWeight(10)
+    beginShape()
     for (let i = 0; i < traceN; i++) {
-        const alpha = (1.8 * i) / traceN
-        stroke(`rgba(0, 0, 0, ${alpha})`)
+        // const alpha = (1.8 * i) / traceN
+        // stroke(`rgba(249, 249, 249, ${alpha})`)
         dot = trace[i]
-        point(dot[0], dot[1])
+        vertex(dot[0], dot[1])
     }
-    stroke(0)
     strokeWeight(1)
-    // endShape()
+    // stroke(0)
+    endShape()
     // line(CENTER.x, trace[traceN - 1][1], x, y)
 
     while (trace.length > N) {
@@ -124,16 +125,22 @@ function Circle(posX, posY, radius, freq, phase, isLast = false) {
     dotY = posY + radius * sin(phi)
 
     if (isLast) {
-        stroke(120)
+        stroke(230)
     } else {
-        stroke(175)
+        stroke(235)
     }
 
     noFill()
-    circle(posX, posY, 2 * radius)
-    strokeWeight(5)
-    point(dotX, dotY)
     strokeWeight(1)
+    circle(posX, posY, 2 * radius)
+    // strokeWeight(4)
+    // point(dotX, dotY)
+    if (isLast) {
+        stroke(30)
+    } else {
+        stroke(35)
+    }
+    strokeWeight(0.25)
     line(posX, posY, dotX, dotY)
 
     return [dotX, dotY]
