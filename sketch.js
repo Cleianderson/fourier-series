@@ -23,6 +23,10 @@ let scale
 let transX
 let transY
 
+var chunks = [];
+var canvas_stream;
+
+
 function configure() {
     step = Number(sliderStep.value())
     scale = Number(sliderScale.value())
@@ -40,6 +44,8 @@ function configure() {
     trace = []
     Y = []
     t = 0
+    path.sort((a, b) => (b.y - a.y))
+
     for (let i = 0; i < path.length; i += step) {
         const _x = path[i].x ? path[i].x : path[i][0]
         const _y = path[i].y ? path[i].y : path[i][1]
@@ -56,7 +62,7 @@ function configure() {
 function setup() {
     createCanvas(WIDTH, HEIGHT, P2D)
 
-    sliderStep = createSlider(1, 50, 1)
+    sliderStep = createSlider(1, path.length, 1)
     sliderStep.position(10, 40)
     sliderStep.input(configure)
     sliderLbl = createSpan("")
@@ -80,6 +86,46 @@ function setup() {
     transYLbl = createSpan("")
     transYLbl.position(10, 200)
 
+
+    var canvas_stream = canvas.captureStream(60); // fps
+// Create media recorder from canvas stream
+    this.media_recorder = new MediaRecorder(canvas_stream, { mimeType: "video/webm; codecs=vp9" });
+    // Record data in chunks array when data is available
+    this.media_recorder.ondataavailable = (evt) => { chunks.push(evt.data); };
+    // Provide recorded data when recording stops
+    this.media_recorder.onstop = () => { this.on_media_recorder_stop(chunks); }
+
+    btnRecord = createButton("►")
+    btnRecord.position(10, 260)
+    // Start recording using a 1s timeslice [ie data is made available every 1s)
+    btnRecord.mousePressed(() => this.media_recorder.start(1000))
+
+    btnStop = createButton("▣")
+    btnStop.position(30, 260)
+    btnStop.mousePressed(() => this.media_recorder.stop())
+    
+    pressDownload = () => {
+        var blob = new Blob(chunks, { type: "video/webm" });
+        const recording_url = URL.createObjectURL(blob);
+        // Gather chunks of video data into a blob and create an object URL
+        // Attach the object URL to an <a> element, setting the download file name
+        const a = document.createElement('a');
+        a.style = "display: none;";
+        a.href = recording_url;
+        a.download = "video.webm";
+        document.body.appendChild(a);
+        // Trigger the file download
+        a.click();
+        setTimeout(() => {
+            // Clean up - see https://stackoverflow.com/a/48968694 for why it is in a timeout
+            URL.revokeObjectURL(recording_url);
+            document.body.removeChild(a);
+        }, 0);
+    }
+    btnDownload = createButton("▼")
+    btnDownload.position(50, 260)
+    btnDownload.mousePressed(pressDownload)
+
     configure()
 }
 
@@ -98,13 +144,18 @@ function draw() {
     trace.push([x, y])
 
     const traceN = trace.length
-    stroke(120)
+    stroke(80)
     // strokeWeight(10)
     beginShape()
     for (let i = 0; i < traceN; i++) {
         // const alpha = (1.8 * i) / traceN
         // stroke(`rgba(249, 249, 249, ${alpha})`)
         dot = trace[i]
+        if (i > 0 && ((dot[0] - trace[i - 1][0]) ** 2 + (dot[1] - trace[i - 1][1]) ** 2) ** (1 / 2) > 5 * step) {
+            strokeWeight(1)
+            endShape()
+            beginShape()
+        }
         vertex(dot[0], dot[1])
     }
     strokeWeight(1)
@@ -114,9 +165,32 @@ function draw() {
 
     while (trace.length > N) {
         trace.shift()
+        if (step > 1) {
+            fourierY = []
+            trace = []
+            Y = []
+            t = 0
+
+            sliderStep.value = () => step - 1
+
+            step = Number(sliderStep.value())
+            sliderLbl.elt.textContent = `Step: ${step}`
+
+            for (let i = 0; i < path.length; i += step) {
+                const _x = path[i].x ? path[i].x : path[i][0]
+                const _y = path[i].y ? path[i].y : path[i][1]
+                const [real, imag] = [_x / scale + transX, _y / scale + transY]
+
+                const complex = new Complex({ real, imag })
+                Y.push(complex)
+            }
+            fourierY = discreteFourierTransform(Y)
+            fourierY.sort((a, b) => b.norm - a.norm)
+            N = fourierY.length
+        }
     }
 
-    t -= (2 * PI / N)
+    t += (2 * PI / N)
 }
 
 function Circle(posX, posY, radius, freq, phase, isLast = false) {
@@ -127,7 +201,7 @@ function Circle(posX, posY, radius, freq, phase, isLast = false) {
     if (isLast) {
         stroke(230)
     } else {
-        stroke(235)
+        stroke(230)
     }
 
     noFill()
@@ -136,7 +210,9 @@ function Circle(posX, posY, radius, freq, phase, isLast = false) {
     // strokeWeight(4)
     // point(dotX, dotY)
     if (isLast) {
+        strokeWeight(4)
         stroke(30)
+        point(dotX, dotY)
     } else {
         stroke(35)
     }
